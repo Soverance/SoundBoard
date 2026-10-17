@@ -1,0 +1,17 @@
+; The project CI builds the plugin in: .github/workflows/ci.yml copies this file and SoundBoardCi.csproj into an
+; empty folder and the repository into its addons/sound_board.
+
+config_version=5
+
+[application]
+
+config/name="Sound Board CI"
+config/features=PackedStringArray("4.7", "C#")
+
+[dotnet]
+
+project/assembly_name="SoundBoardCi"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/sound_board/plugin.cfg")

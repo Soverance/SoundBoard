@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  board-test:
+    # The plugin only exists inside a Godot project, so CI makes one: .github/ci holds its project.godot and
+    # csproj, and the repository goes in at addons/sound_board, as a game mounts it. The build treats warnings as
+    # errors; then the demo board's --board-test runs headless.
+    name: build and --board-test (Godot ${{ env.GODOT_VERSION }} .NET, Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: project/addons/sound_board
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Make the project
+        run: cp project/addons/sound_board/.github/ci/project.godot project/addons/sound_board/.github/ci/SoundBoardCi.csproj project/
+
+      - name: Build
+        run: dotnet build project/SoundBoardCi.csproj
+
+      - name: Get Godot
+        run: |
+          name="Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64"
+          curl -fsSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${name}.zip"
+          unzip -q godot.zip
+          echo "GODOT=$PWD/${name}/Godot_v${GODOT_VERSION}-stable_mono_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: Import
+        run: '"$GODOT" --headless --path project --import'
+
+      - name: Board test
+        run: |
+          "$GODOT" --headless --path project res://addons/sound_board/demo/demo_board.tscn -- --board-test | tee board.log
+          grep -q '^\[board-test\] PASS' board.log
